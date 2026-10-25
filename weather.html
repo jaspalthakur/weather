@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weather Dashboard · Live Forecast</title>
+  <style>
+    /* ---------- RESET & BASE ---------- */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: linear-gradient(145deg, #dce9f5 0%, #c8dcec 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      color: #0b1a2b;
+      line-height: 1.5;
+    }
+
+    .app {
+      max-width: 900px;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(12px);
+      border-radius: 2.5rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 20, 40, 0.3), 0 8px 20px -8px rgba(0, 0, 0, 0.1);
+      padding: 2.2rem 2rem 2.4rem;
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      transition: all 0.2s;
+    }
+
+    h1 {
+      font-size: 1.9rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #0b2b3b;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 1.8rem;
+    }
+
+    h1::before {
+      content: "🌤️";
+      font-size: 2rem;
+      line-height: 1;
+    }
+
+    /* ---------- SEARCH FORM ---------- */
+    #form {
+      display: flex;
+      gap: 0.7rem;
+      margin-bottom: 1.8rem;
+      flex-wrap: wrap;
+    }
+
+    #city {
+      flex: 1;
+      min-width: 180px;
+      padding: 0.9rem 1.3rem;
+      border: 2px solid #d3e2ef;
+      border-radius: 60px;
+      font-size: 1rem;
+      background: white;
+      transition: border 0.15s, box-shadow 0.15s;
+      outline: none;
+      font-weight: 450;
+      color: #0b1a2b;
+    }
+
+    #city:focus {
+      border-color: #2a6b8c;
+      box-shadow: 0 0 0 4px rgba(42, 107, 140, 0.15);
+    }
+
+    #city::placeholder {
+      color: #92a7b7;
+      font-weight: 400;
+    }
+
+    #form button {
+      background: #1d5e7a;
+      color: white;
+      font-weight: 600;
+      padding: 0.9rem 2rem;
+      border: none;
+      border-radius: 60px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      box-shadow: 0 8px 16px -6px #1d5e7a80;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
+
+    #form button:hover {
+      background: #144b63;
+      transform: scale(1.02);
+      box-shadow: 0 10px 20px -6px #1d5e7acc;
+    }
+
+    #form button:active {
+      transform: scale(0.98);
+    }
+
+    #form button:focus-visible {
+      outline: 3px solid #2a6b8c;
+      outline-offset: 2px;
+    }
+
+    /* ---------- STATUS / MESSAGES ---------- */
+    #status {
+      min-height: 1.8rem;
+      font-size: 1rem;
+      font-weight: 500;
+      color: #2e4d5e;
+      margin-bottom: 1.6rem;
+      padding: 0.3rem 0;
+      transition: color 0.2s;
+    }
+
+    #status.error {
+      color: #b13e32;
+      font-weight: 600;
+    }
+
+    #status.loading {
+      color: #2a6b8c;
+      font-style: italic;
+    }
+
+    #status.success {
+      color: #1b5e42;
+      font-weight: 600;
+    }
+
+    /* ---------- CURRENT WEATHER ---------- */
+    .current-weather {
+      background: linear-gradient(135deg, #ffffff 0%, #f4f9ff 100%);
+      border-radius: 2rem;
+      padding: 1.8rem 2rem;
+      margin-bottom: 2rem;
+      border: 1px solid #e0ecf5;
+      box-shadow: 0 8px 20px -10px rgba(0, 30, 50, 0.15);
+      display: none;
+    }
+
+    .current-weather.visible {
+      display: block;
+      animation: fadeSlide 0.3s ease;
+    }
+
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .current-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .current-city {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #0b2b3b;
+      letter-spacing: -0.01em;
+    }
+
+    .current-country {
+      font-size: 0.95rem;
+      color: #4f6c7e;
+      font-weight: 500;
+      background: #e2eef7;
+      padding: 0.2rem 0.9rem;
+      border-radius: 30px;
+    }
+
+    .current-main {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .current-icon {
+      font-size: 4rem;
+      line-height: 1;
+      filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.08));
+    }
+
+    .current-temp {
+      font-size: 3.5rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: #0b2b3b;
+      line-height: 1.1;
+    }
+
+    .current-desc {
+      font-size: 1.1rem;
+      color: #3e5b6e;
+      font-weight: 500;
+      margin-top: 0.2rem;
+    }
+
+    /* ---------- FORECAST ---------- */
+    .forecast-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #12303f;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .forecast-title::before {
+      content: "📅";
+      font-size: 1.2rem;
+    }
+
+    .forecast-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 0.9rem;
+      display: none;
+    }
+
+    .forecast-grid.visible {
+      display: grid;
+      animation: fadeSlide 0.3s ease 0.1s both;
+    }
+
+    .forecast-card {
+      background: white;
+      border-radius: 1.2rem;
+      padding: 1.1rem 0.8rem;
+      text-align: center;
+      border: 1px solid #e0ecf5;
+      box-shadow: 0 4px 12px -6px rgba(0, 30, 50, 0.1);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .forecast-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 18px -6px rgba(0, 30, 50, 0.18);
+    }
+
+    .forecast-day {
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #4f6c7e;
+      margin-bottom: 0.5rem;
+    }
+
+    .forecast-icon {
+      font-size: 2rem;
+      line-height: 1.2;
+      margin-bottom: 0.3rem;
+    }
+
+    .forecast-temps {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .forecast-high {
+      color: #b13e32;
+    }
+
+    .forecast-low {
+      color: #2a6b8c;
+    }
+
+    /* ---------- EMPTY STATE (initial) ---------- */
+    .empty-state {
+      text-align: center;
+      padding: 2.5rem 1rem;
+      color: #839bab;
+      font-style: italic;
+      font-weight: 450;
+      background: #ffffffb3;
+      border-radius: 2rem;
+      border: 1px dashed #cbdae6;
+      font-size: 1.05rem;
+      display: block;
+    }
+
+    .empty-state.hidden {
+      display: none;
+    }
+
+    /* ---------- RESPONSIVE ---------- */
+    @media (max-width: 480px) {
+      .app {
+        padding: 1.5rem 1.2rem;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      .current-temp {
+        font-size: 2.6rem;
+      }
+      .current-icon {
+        font-size: 3rem;
+      }
+      .current-city {
+        font-size: 1.3rem;
+      }
+      #form button {
+        padding: 0.9rem 1.4rem;
+      }
+      .forecast-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .current-weather.visible,
+      .forecast-grid.visible {
+        animation: none;
+      }
+      .forecast-card {
+        transition: none;
+      }
+      .forecast-card:hover {
+        transform: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Weather dashboard</h1>
+
+    <!-- Search form -->
+    <form id="form" role="search">
+      <input type="text" id="city" placeholder="Enter a city name..." autocomplete="off" autofocus>
+      <button type="submit">🔍 Search</button>
+    </form>
+
+    <!-- Status message (loading, errors, success) -->
+    <div id="status" aria-live="polite">Type a city to get started.</div>
+
+    <!-- Empty state -->
+    <div id="emptyState" class="empty-state">🌍 Search for any city to see live weather and a 5‑day forecast.</div>
+
+    <!-- Current weather (hidden initially) -->
+    <div id="currentWeather" class="current-weather">
+      <div class="current-header">
+        <span id="currentCity" class="current-city"></span>
+        <span id="currentCountry" class="current-country"></span>
+      </div>
+      <div class="current-main">
+        <span id="currentIcon" class="current-icon">☀️</span>
+        <div>
+          <div><span id="currentTemp" class="current-temp"></span><span style="font-size:1.5rem;font-weight:600;color:#1f4a5e;">°C</span></div>
+          <div id="currentDesc" class="current-desc"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Forecast section (hidden initially) -->
+    <div id="forecastSection" style="display: none;">
+      <div class="forecast-title">5‑day forecast</div>
+      <div id="forecastGrid" class="forecast-grid"></div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      // ---------- CONFIGURATION ----------
+      // Keep all API URLs in one place for easy maintenance
+      var GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search";
+      var FORECAST_URL = "https://api.open-meteo.com/v1/forecast";
+
+      // ---------- DOM ELEMENTS ----------
+      var form = document.getElementById("form");
+      var cityInput = document.getElementById("city");
+      var statusEl = document.getElementById("status");
+      var emptyState = document.getElementById("emptyState");
+      var currentWeather = document.getElementById("currentWeather");
+      var currentCity = document.getElementById("currentCity");
+      var currentCountry = document.getElementById("currentCountry");
+      var currentIcon = document.getElementById("currentIcon");
+      var currentTemp = document.getElementById("currentTemp");
+      var currentDesc = document.getElementById("currentDesc");
+      var forecastSection = document.getElementById("forecastSection");
+      var forecastGrid = document.getElementById("forecastGrid");
+
+      // ---------- WEATHER CODE MAPPING ----------
+      // WMO Weather interpretation codes → { icon, description }
+      var WEATHER_CODES = {
+        0:  { icon: "☀️", desc: "Clear sky" },
+        1:  { icon: "🌤️", desc: "Mainly clear" },
+        2:  { icon: "⛅", desc: "Partly cloudy" },
+        3:  { icon: "☁️", desc: "Overcast" },
+        45: { icon: "🌫️", desc: "Fog" },
+        48: { icon: "🌫️", desc: "Depositing rime fog" },
+        51: { icon: "🌦️", desc: "Light drizzle" },
+        53: { icon: "🌦️", desc: "Moderate drizzle" },
+        55: { icon: "🌧️", desc: "Dense drizzle" },
+        56: { icon: "🌧️", desc: "Light freezing drizzle" },
+        57: { icon: "🌧️", desc: "Dense freezing drizzle" },
+        61: { icon: "🌦️", desc: "Slight rain" },
+        63: { icon: "🌧️", desc: "Moderate rain" },
+        65: { icon: "🌧️", desc: "Heavy rain" },
+        66: { icon: "🌧️", desc: "Light freezing rain" },
+        67: { icon: "🌧️", desc: "Heavy freezing rain" },
+        71: { icon: "🌨️", desc: "Slight snow" },
+        73: { icon: "🌨️", desc: "Moderate snow" },
+        75: { icon: "❄️", desc: "Heavy snow" },
+        77: { icon: "❄️", desc: "Snow grains" },
+        80: { icon: "🌦️", desc: "Slight rain showers" },
+        81: { icon: "🌧️", desc: "Moderate rain showers" },
+        82: { icon: "⛈️", desc: "Violent rain showers" },
+        85: { icon: "🌨️", desc: "Slight snow showers" },
+        86: { icon: "❄️", desc: "Heavy snow showers" },
+        95: { icon: "⛈️", desc: "Thunderstorm" },
+        96: { icon: "⛈️", desc: "Thunderstorm with slight hail" },
+        99: { icon: "⛈️", desc: "Thunderstorm with heavy hail" }
+      };
+
+      function weatherInfo(code) {
+        return WEATHER_CODES[code] || { icon: "🌡️", desc: "Unknown" };
+      }
+
+      // ---------- STATE HELPERS ----------
+      function setStatus(message, type) {
+        statusEl.textContent = message;
+        statusEl.className = "";
+        if (type) statusEl.classList.add(type);
+      }
+
+      function showEmptyState(show) {
+        emptyState.classList.toggle("hidden", !show);
+        if (show) {
+          currentWeather.classList.remove("visible");
+          forecastSection.style.display = "none";
+          forecastGrid.classList.remove("visible");
+        }
+      }
+
+      function showCurrentWeather() {
+        currentWeather.classList.add("visible");
+        emptyState.classList.add("hidden");
+      }
+
+      function showForecast() {
+        forecastSection.style.display = "block";
+        forecastGrid.classList.add("visible");
+      }
+
+      // ---------- API FUNCTIONS ----------
+      async function findCity(name) {
+        var url = GEOCODING_URL + "?count=1&name=" + encodeURIComponent(name);
+        var res = await fetch(url);
+        if (!res.ok) throw new Error("The search service is not responding. Please try again later.");
+        var data = await res.json();
+        if (!data.results || !data.results.length) throw new Error("City not found. Try a different name.");
+        var c = data.results[0];
+        return { name: c.name, country: c.country || "", lat: c.latitude, lon: c.longitude };
+      }
+
+      async function getWeather(lat, lon) {
+        var url = FORECAST_URL +
+          "?latitude=" + lat +
+          "&longitude=" + lon +
+          "&current=temperature_2m,weather_code" +
+          "&daily=weather_code,temperature_2m_max,temperature_2m_min" +
+          "&forecast_days=5&timezone=auto";
+        var res = await fetch(url);
+        if (!res.ok) throw new Error("Could not load the forecast. Please try again.");
+        return res.json();
+      }
+
+      // ---------- RENDER FUNCTIONS ----------
+      function renderCurrent(city, weather) {
+        var current = weather.current;
+        var info = weatherInfo(current.weather_code);
+
+        currentCity.textContent = city.name;
+        currentCountry.textContent = city.country || "—";
+        currentIcon.textContent = info.icon;
+        currentTemp.textContent = Math.round(current.temperature_2m);
+        currentDesc.textContent = info.desc;
+
+        showCurrentWeather();
+      }
+
+      function renderForecast(weather) {
+        var daily = weather.daily;
+        if (!daily || !daily.time) {
+          forecastSection.style.display = "none";
+          return;
+        }
+
+        forecastGrid.innerHTML = "";
+
+        // Build one card per day (max 5)
+        var days = daily.time.slice(0, 5);
+        days.forEach(function (dateStr, i) {
+          var date = new Date(dateStr + "T12:00:00");
+          var dayName = date.toLocaleDateString("en-US", { weekday: "short" });
+          var high = Math.round(daily.temperature_2m_max[i]);
+          var low = Math.round(daily.temperature_2m_min[i]);
+          var code = daily.weather_code[i];
+          var info = weatherInfo(code);
+
+          var card = document.createElement("div");
+          card.className = "forecast-card";
+
+          var dayEl = document.createElement("div");
+          dayEl.className = "forecast-day";
+          dayEl.textContent = dayName;
+
+          var iconEl = document.createElement("div");
+          iconEl.className = "forecast-icon";
+          iconEl.textContent = info.icon;
+
+          var tempsEl = document.createElement("div");
+          tempsEl.className = "forecast-temps";
+
+          var highEl = document.createElement("span");
+          highEl.className = "forecast-high";
+          highEl.textContent = high + "°";
+
+          var lowEl = document.createElement("span");
+          lowEl.className = "forecast-low";
+          lowEl.textContent = low + "°";
+
+          tempsEl.append(highEl, lowEl);
+          card.append(dayEl, iconEl, tempsEl);
+          forecastGrid.append(card);
+        });
+
+        showForecast();
+      }
+
+      // ---------- MAIN SUBMIT HANDLER ----------
+      form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+
+        var name = cityInput.value.trim();
+
+        // Input validation
+        if (!name) {
+          setStatus("Please type a city name.", "error");
+          cityInput.focus();
+          return;
+        }
+
+        // Show loading
+        setStatus("Loading weather for \"" + name + "\"...", "loading");
+        showEmptyState(false);
+        currentWeather.classList.remove("visible");
+        forecastSection.style.display = "none";
+        forecastGrid.classList.remove("visible");
+
+        try {
+          // Step 1: Geocode the city
+          var city = await findCity(name);
+
+          // Step 2: Fetch weather
+          var weather = await getWeather(city.lat, city.lon);
+
+          // Step 3: Render
+          renderCurrent(city, weather);
+          renderForecast(weather);
+
+          setStatus("Showing weather for " + city.name + (city.country ? ", " + city.country : ""), "success");
+
+          // Remember last city
+          try { localStorage.setItem("weather_last_city", name); } catch (e2) { /* ignore */ }
+        } catch (err) {
+          setStatus(err.message || "Something went wrong. Please try again.", "error");
+          showEmptyState(true);
+          currentWeather.classList.remove("visible");
+          forecastSection.style.display = "none";
+          forecastGrid.classList.remove("visible");
+        }
+      });
+
+      // ---------- RESTORE LAST CITY ----------
+      try {
+        var lastCity = localStorage.getItem("weather_last_city");
+        if (lastCity) {
+          cityInput.value = lastCity;
+          // Auto-trigger search on load for convenience
+          cityInput.dispatchEvent(new Event("input"));
+          // Small delay to ensure DOM is ready
+          setTimeout(function () {
+            form.dispatchEvent(new Event("submit"));
+          }, 100);
+        }
+      } catch (e) {
+        // localStorage unavailable — silently ignore
+      }
+
+      // ---------- INITIAL STATE ----------
+      if (!cityInput.value) {
+        setStatus("Type a city to get started.");
+      }
+    })();
+  </script>
+</body>
+</html>
